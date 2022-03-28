@@ -2,7 +2,6 @@ import cv2
 from imutils import contours
 import numpy as np
 import argparse
-from classify import classify
 from os import path
 import random
 import uuid
@@ -107,8 +106,9 @@ def ProcessGrid(image):
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
     for c in cnts:
         area = cv2.contourArea(c)
-        if area < 3000 :
+        if area > 10000 :
             cv2.drawContours(thresh, [c], -1, (0,0,0), -1)
+            print(c)
 
     # Fix horizontal and vertical lines
     vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1,5))
@@ -127,7 +127,7 @@ def ProcessGrid(image):
     row = []
     for (i, c) in enumerate(cnts, 1):
         area = cv2.contourArea(c+1)
-        if area < 3500:
+        if area > 3500:
             row.append(c)
             (cnts, _) = contours.sort_contours(row, method="right-to-left")
             board_rows.append(cnts)
@@ -137,18 +137,18 @@ def ProcessGrid(image):
     
     for row in board_rows:
         for c in row:
-            # mask = np.zeros(image.shape, dtype=np.uint8)
-            # cv2.drawContours(mask, [c], -1, (255,255,255), -1)
-            # result = cv2.bitwise_and(image, mask)
-            # cv2.imshow("r",result)
-            # result[mask==0] = 255
+            mask = np.zeros(image.shape, dtype=np.uint8)
+            cv2.drawContours(mask, [c], -1, (255,255,255), -1)
+            result = cv2.bitwise_and(image, mask)
+            cv2.imshow("r",result)
+            result[mask==0] = 255
             rect = cv2.minAreaRect(c)
         
             result = crop_minAreaRect(imagecopy, rect)
             cv2.imshow("r",result)
             
             # color, confidence = classify(result)
-            cv2.imwrite(path.join("Crops", str(uuid.uuid4())+".jpg") , result)
+            # cv2.imwrite(path.join("Crops", str(uuid.uuid4())+".jpg") , result)
             # resultList.append([color, confidence])
             cv2.waitKey(1000)
       
