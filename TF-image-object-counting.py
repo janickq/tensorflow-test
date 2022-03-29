@@ -22,7 +22,7 @@ parser.add_argument('--model', help='Folder that the Saved Model is Located In',
 parser.add_argument('--labels', help='Where the Labelmap is Located',
                     default='exported-models/my_mobilenet_model/saved_model/label_map.pbtxt')
 parser.add_argument('--image', help='Name of the single image to perform detection on',
-                    default='WOB\WOB IPAD\Photo 21-3-22, 2 59 14 PM.jpg')
+                    default='WOB\WOB IPAD\Photo 21-3-22, 3 00 36 PM.jpg')
 parser.add_argument('--threshold', help='Minimum confidence threshold for displaying detected objects',
                     default=0.5)
                     
@@ -125,12 +125,12 @@ def perspective_transform(mask, img, rect):
     # pts2 = np.float32([[rows,0], [0, 0], [0,cols], [rows,cols]])
     pts2 = np.float32(rect)
     M = cv2.getPerspectiveTransform(pts1,pts2)
-    print(M)
+    # print(M)
     dst = cv2.warpPerspective(img,M,(1000,1000))
     return dst
 
 def find_corners(img):
-    
+    img = cv2.blur(img, (5,5))
     dst = cv2.cornerHarris(img,20,3,0.04)
     ret, dst = cv2.threshold(dst,0.1*dst.max(),255,0)
     dst = np.uint8(dst)
@@ -139,7 +139,7 @@ def find_corners(img):
     corners = cv2.cornerSubPix(img,np.float32(centroids),(5,5),(-1,-1),criteria)
     x = 0
     for i in range(1, len(corners)):
-        print(corners[i])
+        # print(corners[i])
         cv2.circle(img, (int(corners[i,0]), int(corners[i,1])), 7, (255,255,255), 2)
         cv2.putText(img, str(x), (int(corners[i,0]), int(corners[i,1])), cv2.FONT_HERSHEY_COMPLEX, 0.5, (125,125,125), 2)
         x = x+1
@@ -190,7 +190,7 @@ def detector(image):
           # Draw label
           object_name = category_index[int(classes[i])]['name'] # Look up object name from "labels" array using class index
           label = '%s: %d%%' % (object_name, int(scores[i]*100)) # Example: 'person: 72%'
-          mid_point[count] = [[abs(xmax-xmin)/2, abs(ymax-ymin)/2], label]
+          mid_point.append([(xmax+xmin)/2, (ymax+ymin)/2, label])
           labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2) # Get font size
           label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
           cv2.rectangle(image, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
@@ -201,6 +201,16 @@ def detector(image):
   return image, mid_point
 
 def sort_grid(image, items):
+  x = []
+  y = []
+  name = []
+  for i in range(len(items)):
+    x.append(items[i][0])
+    y.append(items[i][1])
+    name.append(items[i][2])
+  
+  print(x,y,name)
+  print(items)
   rows = 4
   cols = 6
   deliver = []
@@ -208,8 +218,27 @@ def sort_grid(image, items):
   rows = 2
   ret = []
   ret = [[0 for i in range(cols)] for j in range(rows)] 
-  w,h = image.shape
-  # for i in range(1,7):
+  rows = 6
+  order = [[0 for i in range(cols)] for j in range(rows)] 
+  w,h,c = np.shape(image)
+  colsize = w/7
+  rowsize = h/7
+  count = len(items)
+  for i in range(0, cols):
+    for j in range(0, rows):
+      for counts in range(count):
+        
+        if x[counts] > colsize*(i+1) and x[counts] < colsize*(i+2) and y[counts] > rowsize*(j+1) and y[counts] < rowsize*(j+2):
+          order[j][i] = name[counts]
+
+  for i in range(4):
+    deliver[i] = order[i]
+  for i in range(2):
+    ret[i] = order[i+4]
+  with open('debug.txt', 'w') as f:
+    f.write(str(deliver))
+    f.write(str(ret))
+  return deliver, ret
     
   
 
@@ -217,7 +246,8 @@ if __name__ == "__main__":
   image = cv2.imread(IMAGE_PATHS)
   image = cv2.resize(image, (1000,1000))
   image = getWOB(image)
-  deliver, ret = sort_grid(detector(image))
+  img, item = detector(image)
+  deliver, ret = sort_grid(img,item)
   image = cv2.resize(image,(600,600))
   # DISPLAYS OUTPUT IMAGE
   cv2.imshow('Object Counter', image)
